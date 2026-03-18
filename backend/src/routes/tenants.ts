@@ -37,7 +37,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create a tenant
 router.post('/', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: Response) => {
   try {
-    const { name, phone, email, idProof, emergencyContact, roomId, bedId, moveInDate, rentAmount, depositAmount } = req.body;
+    const { name, phone, email, idProof, emergencyContact, roomId, bedId, moveInDate, rentAmount, depositAmount, dueAmount } = req.body;
 
     // Validate bed availability
     const bed = await prisma.bed.findUnique({ where: { id: bedId } });
@@ -53,7 +53,7 @@ router.post('/', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: 
           name, phone, email, idProof, emergencyContact,
           roomId, bedId, 
           moveInDate: new Date(moveInDate), 
-          rentAmount, depositAmount,
+          rentAmount, depositAmount, dueAmount: dueAmount || 0,
           status: 'ACTIVE'
         }
       });
@@ -70,11 +70,11 @@ router.post('/', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: 
         data: {
           occupiedBeds: { increment: 1 },
           availableBeds: { decrement: 1 },
-          status: 'FULL' // will be overwritten if still available
+          status: 'OCCUPIED' // will be overwritten if still available
         }
       });
 
-      // Re-evaluate room status (FULL vs AVAILABLE)
+      // Re-evaluate room status (OCCUPIED vs AVAILABLE)
       const room = await tx.room.findUnique({ where: { id: roomId } });
       if (room && room.availableBeds > 0) {
         await tx.room.update({ where: { id: roomId }, data: { status: 'AVAILABLE' } });
@@ -140,6 +140,46 @@ router.put('/:id', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res
       data: { name, phone, email, idProof, emergencyContact, rentAmount },
     });
     res.status(200).json(tenant);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete a tenant permanently
+router.delete('/:id', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.params.id;
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) return res.status(404).json({ message: 'Tenant not found' });
+
+    await prisma.$transaction(async (tx) => {
+      if (tenant.bedId) {
+        // Mark bed as AVAILABLE
+        await tx.bed.update({
+          where: { id: tenant.bedId },
+          data: { status: 'AVAILABLE', tenantId: null },
+        });
+
+        // Update room occupancy
+        await tx.room.update({
+          where: { id: tenant.roomId },
+          data: {
+            occupiedBeds: { decrement: 1 },
+            availableBeds: { increment: 1 },
+            status: 'AVAILABLE'
+          }
+        });
+      }
+
+      // Delete associated payments and maintenance requests first to respect foreign keys
+      await tx.payment.deleteMany({ where: { tenantId } });
+      await tx.maintenanceRequest.deleteMany({ where: { tenantId } });
+
+      // Delete tenant
+      await tx.tenant.delete({ where: { id: tenantId } });
+    });
+
+    res.status(200).json({ message: 'Tenant successfully deleted' });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

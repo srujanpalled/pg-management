@@ -39,6 +39,18 @@ router.put('/:id', authorizeRole(['OWNER', 'MANAGER', 'STAFF']), async (req: Req
       where: { id: req.params.id },
       data: { status, resolvedAt },
     });
+
+    if (status === 'RESOLVED') {
+      const room = await prisma.room.findUnique({ where: { id: request.roomId } });
+      if (room) {
+        const newStatus = room.availableBeds > 0 ? 'AVAILABLE' : 'OCCUPIED';
+        await prisma.room.update({
+          where: { id: room.id },
+          data: { status: newStatus }
+        });
+      }
+    }
+
     res.status(200).json(request);
   } catch (error: any) {
     res.status(500).json({ message: error.message });

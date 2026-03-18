@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, IndianRupee, Calendar, User, FileText, Save } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import api from '../utils/api';
+import toast from 'react-hot-toast';
 
 interface RecordPaymentModalProps {
   onClose: () => void;
 }
 
 export default function RecordPaymentModal({ onClose }: RecordPaymentModalProps) {
-  const { residents, recordPayment } = useAppContext();
+  const { residents, fetchData } = useAppContext();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     residentId: '',
@@ -23,18 +26,30 @@ export default function RecordPaymentModal({ onClose }: RecordPaymentModalProps)
   
   const selectedResident = residents.find(r => r.id === formData.residentId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.residentId || !formData.amount) return;
 
-    recordPayment(
-      formData.residentId,
-      Number(formData.amount),
-      formData.method,
-      formData.reference
-    );
-    
-    onClose();
+    try {
+      setIsSubmitting(true);
+      await api.post('/payments', {
+        tenantId: formData.residentId,
+        amount: Number(formData.amount),
+        date: formData.date,
+        paymentMethod: formData.method,
+        description: formData.reference || `Payment for ${selectedResident?.name}`,
+        category: 'Rent',
+        status: 'Completed'
+      });
+      await fetchData();
+      toast.success('Payment recorded successfully');
+      onClose();
+    } catch (err) {
+      console.error('Failed to record payment', err);
+      toast.error('Failed to record payment');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -162,11 +177,11 @@ export default function RecordPaymentModal({ onClose }: RecordPaymentModalProps)
           <button 
             type="submit"
             form="record-payment-form"
-            disabled={!formData.residentId || !formData.amount}
+            disabled={!formData.residentId || !formData.amount || isSubmitting}
             className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-5 h-5" />
-            Record Payment
+            {isSubmitting ? 'Recording...' : 'Record Payment'}
           </button>
         </div>
       </motion.div>

@@ -10,6 +10,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import BottomNav from './components/BottomNav';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast';
 
 function MainApp() {
   const [currentScreen, setCurrentScreen] = useState('dashboard');
@@ -30,6 +31,7 @@ function MainApp() {
         </AnimatePresence>
       </div>
       <BottomNav currentScreen={currentScreen} onNavigate={setCurrentScreen} />
+      <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
     </div>
   );
 }

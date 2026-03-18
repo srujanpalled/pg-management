@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, Plus, IndianRupee } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { Tenant } from '../types';
 import AddResidentModal from '../components/AddResidentModal';
+import ResidentDetailsModal from '../components/ResidentDetailsModal';
 
 export default function ResidentsScreen() {
   const { residents, rooms } = useAppContext();
   const [activeTab, setActiveTab] = useState('All');
   const [isAddingResident, setIsAddingResident] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedResident, setSelectedResident] = useState<Tenant | null>(null);
 
   const filteredData = residents.filter(r => {
     const matchesTab = activeTab === 'All' ? true : r.paymentStatus === activeTab;
@@ -73,7 +76,8 @@ export default function ResidentsScreen() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-slate-100"
+              onClick={() => setSelectedResident(resident)}
+              className="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors"
             >
               <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl shrink-0 ${resident.color}`}>
                 {resident.initials}
@@ -126,6 +130,13 @@ export default function ResidentsScreen() {
       <AnimatePresence>
         {isAddingResident && (
           <AddResidentModal onClose={() => setIsAddingResident(false)} />
+        )}
+        {selectedResident && (
+          <ResidentDetailsModal 
+            resident={selectedResident} 
+            room={rooms.find(r => r.id === selectedResident.roomId)}
+            onClose={() => setSelectedResident(null)} 
+          />
         )}
       </AnimatePresence>
     </motion.div>

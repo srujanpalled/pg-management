@@ -4,6 +4,7 @@ import { ChevronLeft, Plus, BedDouble, User, Phone, Calendar, IndianRupee, Alert
 import RoomEditorModal from '../components/RoomEditorModal';
 import { useAppContext } from '../context/AppContext';
 import { Room, BedStatus, Tenant, PaymentStatus, Reminder } from '../types';
+import toast from 'react-hot-toast';
 
 export default function RoomsScreen() {
   const { rooms, setRooms, residents } = useAppContext();
@@ -43,11 +44,10 @@ export default function RoomsScreen() {
 
   const getStatusColor = (status: Room['status']) => {
     switch (status) {
-      case 'Vacant': return 'bg-emerald-100 text-emerald-700';
+      case 'Available': return 'bg-emerald-100 text-emerald-700';
       case 'Active': return 'bg-emerald-100 text-emerald-700';
       case 'Occupied': return 'bg-rose-100 text-rose-700';
       case 'Maintenance': return 'bg-amber-100 text-amber-700';
-      case 'Partially Occupied': return 'bg-blue-100 text-blue-700';
       case 'Temporarily Closed': return 'bg-slate-200 text-slate-800';
       default: return 'bg-slate-100 text-slate-700';
     }
@@ -76,8 +76,8 @@ export default function RoomsScreen() {
             <p className="text-2xl font-black text-slate-800">{rooms.length}</p>
           </div>
           <div className="shrink-0 bg-emerald-50 border border-emerald-100 rounded-2xl p-4 min-w-[100px] text-center shadow-sm">
-            <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider mb-1">Vacant</p>
-            <p className="text-2xl font-black text-emerald-700">{rooms.filter(r => r.status === 'Vacant').length}</p>
+            <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider mb-1">Available</p>
+            <p className="text-2xl font-black text-emerald-700">{rooms.filter(r => r.status === 'Available').length}</p>
           </div>
           <div className="shrink-0 bg-rose-50 border border-rose-100 rounded-2xl p-4 min-w-[100px] text-center shadow-sm">
             <p className="text-[10px] text-rose-600 uppercase font-bold tracking-wider mb-1">Occupied</p>
@@ -108,7 +108,7 @@ export default function RoomsScreen() {
                     <div className="flex justify-between items-start mb-4">
                       <span className="text-3xl font-black text-slate-800">{room.number}</span>
                       <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${getStatusColor(room.status)}`}>
-                        {room.status === 'Partially Occupied' ? 'Partial' : room.status}
+                        {room.status}
                       </span>
                     </div>
                     <div>
@@ -116,7 +116,7 @@ export default function RoomsScreen() {
                         <>
                           <p className="text-sm text-slate-700 font-bold truncate">{roomResidents[0].name}</p>
                           {roomResidents.length > 1 && <p className="text-[11px] text-slate-400 font-medium mt-1">+{roomResidents.length - 1} more</p>}
-                          {room.status === 'Partially Occupied' && (
+                          {room.beds.filter(b => b.status === 'Available').length > 0 && (
                             <p className="text-[11px] text-emerald-600 font-bold mt-1">{room.beds.filter(b => b.status === 'Available').length} Slot Left</p>
                           )}
                         </>
@@ -161,8 +161,24 @@ export default function RoomsScreen() {
 }
 
 function RoomDetailsModal({ room, onClose, onEdit }: { room: Room; onClose: () => void; onEdit: () => void }) {
-  const { residents } = useAppContext();
+  const { residents, fetchData } = useAppContext();
   const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
+  const [isAddingBed, setIsAddingBed] = useState(false);
+
+  const handleAddBed = async () => {
+    try {
+      setIsAddingBed(true);
+      const api = (await import('../utils/api')).default;
+      await api.put(`/rooms/${room.id}/add-bed`);
+      await fetchData(); // Refresh data to instantly reflect
+      toast.success(`Bed added to Room ${room.number}`);
+    } catch (err) {
+      console.error('Failed to add bed', err);
+      toast.error('Failed to add bed. Please try again.');
+    } finally {
+      setIsAddingBed(false);
+    }
+  };
 
   const roomResidents = residents.filter(r => r.roomId === room.id);
   const availableBeds = room.beds.filter(b => b.status === 'Available').length;
@@ -269,7 +285,16 @@ function RoomDetailsModal({ room, onClose, onEdit }: { room: Room; onClose: () =
 
         {/* Bed Allocation Panel */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <h3 className="text-sm font-bold text-slate-800 mb-3">Bed Allocation</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-slate-800">Bed Allocation</h3>
+            <button 
+              onClick={handleAddBed}
+              disabled={isAddingBed}
+              className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" /> {isAddingBed ? 'Adding...' : 'Add Bed'}
+            </button>
+          </div>
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-2">
             {room.beds.map((bed, idx) => {
               const tenant = roomResidents.find(r => r.bedId === bed.id);

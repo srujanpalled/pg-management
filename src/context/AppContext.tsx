@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Room, Tenant, Transaction, Complaint, ActivityLog, PGSettings } from '../types';
+import { Room, Tenant, Transaction, Complaint, ActivityLog, PGSettings, Worker } from '../types';
 import { mockRooms } from '../data/mockRooms';
+import api from '../utils/api';
 
 // ─── Storage helpers ───────────────────────────────────────────────
 const STORAGE_KEY = 'pg_manager_data';
@@ -105,6 +106,9 @@ interface AppContextType {
   updateComplaintStatus: (id: string, status: Complaint['status']) => void;
   addActivity: (type: ActivityLog['type'], message: string) => void;
   clearAllData: () => void;
+  workers: Worker[];
+  setWorkers: React.Dispatch<React.SetStateAction<Worker[]>>;
+  fetchData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -118,11 +122,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [complaints, setComplaints] = useState<Complaint[]>(stored?.complaints || initialComplaints);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>(stored?.activityLog || initialActivityLog);
   const [settings, setSettings] = useState<PGSettings>(stored?.settings || defaultSettings);
+  const [workers, setWorkers] = useState<Worker[]>([]);
 
-  // Persist to localStorage on every state change
+  const fetchData = async () => {
+    try {
+      const [rRes, tRes, pRes, mRes, wRes] = await Promise.all([
+        api.get('/rooms').catch(() => ({ data: mockRooms })),
+        api.get('/tenants').catch(() => ({ data: initialResidents })),
+        api.get('/payments').catch(() => ({ data: [] })),
+        api.get('/maintenance').catch(() => ({ data: initialComplaints })),
+        api.get('/workers').catch(() => ({ data: [] }))
+      ]);
+      setRooms(rRes.data);
+      const formattedResidents = tRes.data.map((r: any) => ({
+        ...r,
+        paymentStatus: (r.dueAmount && r.dueAmount > 0) ? 'Pending Payment' : 'Paid',
+        initials: r.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
+        color: 'bg-blue-500/20 text-blue-400', // Default color, can be enhanced to use consistent hash
+      }));
+      setResidents(formattedResidents);
+      // Simplify transactions to just payments for now or merge later
+      if (pRes.data && pRes.data.length > 0) {
+        setTransactions(pRes.data as Transaction[]);
+      }
+      setComplaints(mRes.data);
+      setWorkers(wRes.data);
+    } catch (err) {
+      console.error('Error fetching backend data:', err);
+    }
+  };
+
   useEffect(() => {
-    saveToStorage({ rooms, residents, transactions, complaints, activityLog, settings });
-  }, [rooms, residents, transactions, complaints, activityLog, settings]);
+    fetchData();
+  }, []);
+
+  // Removed localStorage persistent save for now, as we use backend logic mainly
 
   const addActivity = useCallback((type: ActivityLog['type'], message: string) => {
     const entry: ActivityLog = {
@@ -250,6 +284,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       recordPayment, addExpense,
       addComplaint, updateComplaintStatus,
       addActivity, clearAllData,
+      workers, setWorkers, fetchData
     }}>
       {children}
     </AppContext.Provider>

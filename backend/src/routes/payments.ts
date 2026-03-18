@@ -34,6 +34,13 @@ router.post('/', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: 
       },
     });
 
+    if (payment.status === 'PAID') {
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { dueAmount: { decrement: amount } }
+      });
+    }
+
     res.status(201).json(payment);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -44,10 +51,23 @@ router.post('/', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: 
 router.put('/:id', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: Response) => {
   try {
     const { status, paymentMethod, receiptNumber } = req.body;
+    
+    // Check old status
+    const oldPayment = await prisma.payment.findUnique({ where: { id: req.params.id } });
+    
     const payment = await prisma.payment.update({
       where: { id: req.params.id },
       data: { status, paymentMethod, receiptNumber },
     });
+
+    // If changing from PENDING to PAID
+    if (oldPayment?.status !== 'PAID' && status === 'PAID') {
+      await prisma.tenant.update({
+        where: { id: payment.tenantId },
+        data: { dueAmount: { decrement: payment.amount } }
+      });
+    }
+
     res.status(200).json(payment);
   } catch (error: any) {
     res.status(500).json({ message: error.message });

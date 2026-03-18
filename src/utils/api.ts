@@ -23,11 +23,13 @@ export const getDashboardData = () => api.get('/reports/dashboard');
 export const getRooms = () => api.get('/rooms');
 export const createRoom = (data: any) => api.post('/rooms', data);
 export const deleteRoom = (id: string) => api.delete(`/rooms/${id}`);
+export const addBedToRoom = (id: string) => api.put(`/rooms/${id}/add-bed`);
 
 // Tenants
 export const getTenants = () => api.get('/tenants');
 export const createTenant = (data: any) => api.post('/tenants', data);
 export const vacateTenant = (id: string) => api.put(`/tenants/${id}/vacate`);
+export const deleteTenant = (id: string) => api.delete(`/tenants/${id}`);
 
 // Payments
 export const getPayments = () => api.get('/payments');
@@ -41,5 +43,10 @@ export const createExpense = (data: any) => api.post('/expenses', data);
 export const getMaintenanceRequests = () => api.get('/maintenance');
 export const createMaintenanceRequest = (data: any) => api.post('/maintenance', data);
 export const updateMaintenanceStatus = (id: string, status: string) => api.put(`/maintenance/${id}`, { status });
+
+// Workers
+export const getWorkers = () => api.get('/workers');
+export const createWorker = (data: any) => api.post('/workers', data);
+export const deleteWorker = (id: string) => api.delete(`/workers/${id}`);
 
 export default api;

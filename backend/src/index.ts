@@ -9,6 +9,7 @@ import expenseRoutes from './routes/expenses';
 import maintenanceRoutes from './routes/maintenance';
 import reportsRoutes from './routes/reports';
 import uploadRoutes from './routes/upload';
+import workerRoutes from './routes/workers';
 import './utils/cron'; // Start the cron scheduler
 
 dotenv.config();
@@ -28,6 +29,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/workers', workerRoutes);
 
 // Configure static folder for uploads
 app.use('/uploads', express.static('uploads'));

@@ -1,6 +1,11 @@
 import { motion } from 'motion/react';
-import { Users, Home, IndianRupee, Plus, ArrowRight, CheckCircle2, UserPlus, Wrench } from 'lucide-react';
+import { Users, Home, IndianRupee, Plus, ArrowRight, CheckCircle2, UserPlus, Wrench, Briefcase } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { useState } from 'react';
+import { AnimatePresence } from 'motion/react';
+import WorkersModal from '../components/WorkersModal';
+import api from '../utils/api';
+import toast from 'react-hot-toast';
 
 interface DashboardProps {
   onNavigate: (screen: string) => void;
@@ -8,7 +13,23 @@ interface DashboardProps {
 }
 
 export default function DashboardScreen({ onNavigate }: DashboardProps) {
-  const { rooms, residents, transactions, complaints } = useAppContext();
+  const { rooms, residents, transactions, complaints, fetchData } = useAppContext();
+  const [showWorkers, setShowWorkers] = useState(false);
+  const [updatingComplaintId, setUpdatingComplaintId] = useState<string | null>(null);
+
+  const handleResolveComplaint = async (id: string) => {
+    try {
+      setUpdatingComplaintId(id);
+      await api.put(`/maintenance/${id}`, { status: 'Resolved' });
+      await fetchData();
+      toast.success('Complaint marked as resolved');
+    } catch (err) {
+      console.error('Failed to resolve complaint', err);
+      toast.error('Failed to resolve complaint');
+    } finally {
+      setUpdatingComplaintId(null);
+    }
+  };
 
   // Calculate metrics
   const totalBeds = rooms.reduce((acc, room) => acc + room.beds.length, 0);
@@ -136,6 +157,16 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
               </div>
               <span className="text-sm font-bold text-slate-700">Collect Rent</span>
             </motion.button>
+            <motion.button 
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowWorkers(true)}
+              className="col-span-2 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center gap-3 hover:bg-slate-50 transition-colors"
+            >
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                <Briefcase className="w-5 h-5" />
+              </div>
+              <span className="text-sm font-bold text-slate-700">Workers Directory</span>
+            </motion.button>
           </div>
         </motion.div>
 
@@ -163,6 +194,14 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
                       <span className="text-xs font-semibold text-slate-400">{resident?.name || 'Unknown'}</span>
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleResolveComplaint(complaint.id)}
+                    disabled={updatingComplaintId === complaint.id}
+                    className="self-center shrink-0 p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors flex items-center gap-1.5 hidden sm:flex disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span className="text-xs font-bold">Mark Done</span>
+                  </button>
                 </div>
               );
             })}
@@ -176,6 +215,10 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {showWorkers && <WorkersModal onClose={() => setShowWorkers(false)} />}
+      </AnimatePresence>
     </motion.div>
   );
 }

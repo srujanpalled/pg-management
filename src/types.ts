@@ -18,6 +18,7 @@ export interface Tenant {
   color: string;
   rentAmount: number;
   securityDeposit: number;
+  dueAmount?: number;
   isActive: boolean;
 }
 
@@ -40,7 +41,7 @@ export interface Room {
   number: string;
   floor: string;
   type: 'Single' | 'Double' | 'Triple' | 'Custom';
-  status: 'Vacant' | 'Occupied' | 'Maintenance' | 'Partially Occupied' | 'Temporarily Closed' | 'Active';
+  status: 'Available' | 'Occupied' | 'Maintenance' | 'Temporarily Closed' | 'Active';
   beds: Bed[];
   reminders: Reminder[];
   rentPerBed?: number;
@@ -86,4 +87,11 @@ export interface PGSettings {
   address: string;
   phone: string;
   email: string;
+}
+
+export interface Worker {
+  id: string;
+  name: string;
+  phone: string;
+  workType: string;
 }

@@ -132,4 +132,42 @@ router.delete('/:id', authorizeRole(['OWNER']), async (req: Request, res: Respon
   }
 });
 
+// Add a Bed to an existing room
+router.put('/:id/add-bed', authorizeRole(['OWNER', 'MANAGER']), async (req: Request, res: Response) => {
+  try {
+    const roomId = req.params.id;
+    // Find highest bed number in that room
+    const existingBeds = await prisma.bed.findMany({
+      where: { roomId },
+      orderBy: { bedNumber: 'desc' },
+      take: 1
+    });
+    
+    const nextBedNumber = existingBeds.length > 0 ? existingBeds[0].bedNumber + 1 : 1;
+
+    // Create the bed
+    await prisma.bed.create({
+      data: {
+        roomId,
+        bedNumber: nextBedNumber,
+        status: 'AVAILABLE'
+      }
+    });
+
+    // Update room stats
+    const updatedRoom = await prisma.room.update({
+      where: { id: roomId },
+      data: {
+        totalBeds: { increment: 1 },
+        availableBeds: { increment: 1 }
+      },
+      include: { beds: true }
+    });
+
+    res.status(200).json(updatedRoom);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 export default router;

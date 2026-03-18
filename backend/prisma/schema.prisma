@@ -85,6 +85,7 @@ model Tenant {
   moveInDate       DateTime
   rentAmount       Float
   depositAmount    Float
+  dueAmount        Float    @default(0)
   agreementFile    String?
   status           String @default("ACTIVE")
 
@@ -152,3 +153,11 @@ model Notification {
 }
 
 // NotificationStatus enum removed for SQLite compatibility
+
+model Worker {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  workType  String   // electrician, plumber, etc.
+  createdAt DateTime @default(now())
+}
