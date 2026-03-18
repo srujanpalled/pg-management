@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  phone        String
+  passwordHash String
+  role         String   @default("OWNER")
+  createdAt    DateTime @default(now())
+
+  properties   Property[]
+  notifications Notification[]
+}
+
+// Role enum removed for SQLite compatibility
+
+model Property {
+  id           String   @id @default(uuid())
+  ownerId      String
+  propertyName String
+  address      String
+  city         String
+  totalFloors  Int
+  createdAt    DateTime @default(now())
+
+  owner        User     @relation(fields: [ownerId], references: [id])
+  rooms        Room[]
+  expenses     Expense[]
+}
+
+model Room {
+  id           String   @id @default(uuid())
+  propertyId   String
+  roomNumber   String
+  floor        Int
+  roomType     String   // AC / Non AC
+  rentPrice    Float
+  totalBeds    Int
+  occupiedBeds Int      @default(0)
+  availableBeds Int
+  status       String @default("AVAILABLE")
+  createdAt    DateTime @default(now())
+
+  property     Property @relation(fields: [propertyId], references: [id])
+  beds         Bed[]
+  tenants      Tenant[]
+  maintenanceRequests MaintenanceRequest[]
+}
+
+// RoomStatus enum removed for SQLite compatibility
+
+model Bed {
+  id         String   @id @default(uuid())
+  roomId     String
+  bedNumber  Int
+  status     String @default("AVAILABLE")
+  tenantId   String?  @unique
+
+  room       Room     @relation(fields: [roomId], references: [id])
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+}
+
+// BedStatus enum removed for SQLite compatibility
+
+model Tenant {
+  id               String   @id @default(uuid())
+  name             String
+  phone            String
+  email            String?
+  idProof          String?
+  emergencyContact String?
+  roomId           String
+  bedId            String?  @unique
+  moveInDate       DateTime
+  rentAmount       Float
+  depositAmount    Float
+  agreementFile    String?
+  status           String @default("ACTIVE")
+
+  room             Room     @relation(fields: [roomId], references: [id])
+  bed              Bed?
+  payments         Payment[]
+  maintenanceRequests MaintenanceRequest[]
+}
+
+// TenantStatus enum removed for SQLite compatibility
+
+model Payment {
+  id            String   @id @default(uuid())
+  tenantId      String
+  amount        Float
+  paymentMethod String   // Cash / UPI / Bank Transfer
+  paymentDate   DateTime @default(now())
+  paymentMonth  String
+  status        String @default("PENDING")
+  receiptNumber String?
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+// PaymentStatus enum removed for SQLite compatibility
+
+model Expense {
+  id          String   @id @default(uuid())
+  propertyId  String
+  title       String
+  category    String   // electricity, water, internet, maintenance, salary, groceries
+  amount      Float
+  date        DateTime
+  description String?
+
+  property    Property @relation(fields: [propertyId], references: [id])
+}
+
+model MaintenanceRequest {
+  id          String   @id @default(uuid())
+  roomId      String
+  tenantId    String
+  issueType   String
+  description String
+  priority    String @default("MEDIUM")
+  status      String @default("PENDING")
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  room        Room     @relation(fields: [roomId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+// Priority and MaintenanceStatus enums removed for SQLite compatibility
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // Reminder, Alert, Info
+  message     String
+  status      String @default("UNREAD")
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// NotificationStatus enum removed for SQLite compatibility
